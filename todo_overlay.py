@@ -1,7 +1,7 @@
 from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QTextEdit, QPushButton, QApplication
 from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
 
 class TodoOverlay(QWidget):
 
@@ -9,6 +9,11 @@ class TodoOverlay(QWidget):
 
     def __init__(self):
         super().__init__()
+
+        self._dragging = False
+        self._resizing = False
+        self._drag_pos = QPoint()
+        self.resize_margin = 10
 
         font_path = "Minecraft.ttf"
         font_id = QFontDatabase.addApplicationFont(font_path)
@@ -27,6 +32,8 @@ class TodoOverlay(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
 
+        self.setMouseTracking(True)
+
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -44,11 +51,12 @@ class TodoOverlay(QWidget):
         """)
         
         label_layout = QVBoxLayout(self.background_label)
-        label_layout.setContentsMargins(20, 30, 20,30)
+        label_layout.setContentsMargins(int(self.width()/25), int(self.width()/25), int(self.width()/25),int(self.width()/25))
 
         self.close_button = QPushButton("×", self.background_label)
         self.close_button.setFixedSize(24, 24)
-        self.close_button.move(160, 5) 
+        self.close_button.move(150, 4) 
+        self.close_button.setContentsMargins(0, 0, 10, 0)
         
         self.close_button.setStyleSheet("""
             QPushButton {
@@ -98,3 +106,42 @@ class TodoOverlay(QWidget):
         data = self.text_editor.toPlainText()
         with open("save.txt", "w", encoding="utf-8") as f:
             f.write(data)
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            rect = self.rect()
+            if event.pos().x() > rect.width() - self.resize_margin and \
+               event.pos().y() > rect.height() - self.resize_margin:
+                self._resizing = True
+            else:
+                self._dragging = True
+                self._drag_pos = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        rect = self.rect()
+        pos = event.pos()
+
+        if pos.x() > rect.width() - self.resize_margin and pos.y() > rect.height() - self.resize_margin:
+            self.setCursor(Qt.CursorShape.SizeFDiagCursor)
+        else:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+
+        if self._resizing:
+            new_width = max(100, pos.x())
+            new_height = max(100, pos.y())
+            self.resize(new_width, new_height)
+        elif self._dragging:
+            self.move(event.globalPosition().toPoint() - self._drag_pos)
+        
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self._dragging = False
+        self._resizing = False
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def resizeEvent(self, event):
+        self.close_button.move(self.width() - 40, 5)
+        self.text_editor.move(int(self.width()/10), int(self.height()/9))
+        super().resizeEvent(event)
