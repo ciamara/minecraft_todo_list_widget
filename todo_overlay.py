@@ -1,11 +1,9 @@
 from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QTextEdit, QPushButton, QApplication
 from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
+from PyQt6.QtCore import Qt, QPoint
 
 class TodoOverlay(QWidget):
-
-    data_received = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -17,8 +15,8 @@ class TodoOverlay(QWidget):
 
         font_path = "Minecraft.ttf"
         font_id = QFontDatabase.addApplicationFont(font_path)
-        font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
-        custom_font = QFont(font_family, 11)
+        self.font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+        custom_font = QFont(self.font_family, int(self.width()/50))
 
         self.setWindowFlags(
             Qt.WindowType.Window |
@@ -36,11 +34,6 @@ class TodoOverlay(QWidget):
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
-
-        # hide timer
-        #self.display_timer = QTimer(self)
-        #self.display_timer.setSingleShot(True)
-        #self.display_timer.timeout.connect(self.hide)
 
         self.background_label = QLabel("", self)
         self.background_label.setStyleSheet("""
@@ -88,14 +81,9 @@ class TodoOverlay(QWidget):
         label_layout.addWidget(self.text_editor)
         main_layout.addWidget(self.background_label)
 
-        self.data_received.connect(self.update_todos)
         
         self.setGeometry(1340, 500, 190, 240)     # x, y, w, h
 
-    def update_todos(self, todos):
-        self.text_editor.setPlainText(todos)
-        self.show()
-        #self.display_timer.start(6000)
 
     def load(self):
         with open("save.txt", "r", encoding="utf-8") as f:
@@ -144,4 +132,8 @@ class TodoOverlay(QWidget):
     def resizeEvent(self, event):
         self.close_button.move(self.width() - 40, 5)
         self.text_editor.move(int(self.width()/10), int(self.height()/9))
+
+        dynamic_size = max(8, int(self.width() / 15)) 
+        new_font = QFont(self.font_family, dynamic_size)
+        self.text_editor.setFont(new_font)
         super().resizeEvent(event)
