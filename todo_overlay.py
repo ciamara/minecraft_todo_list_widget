@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QTextEdit
+from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QTextEdit, QPushButton, QApplication
 from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtGui import QFont
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
@@ -20,7 +20,8 @@ class TodoOverlay(QWidget):
             Qt.WindowType.FramelessWindowHint | 
             Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.Tool |
-            Qt.WindowType.CustomizeWindowHint
+            Qt.WindowType.CustomizeWindowHint |
+            Qt.WindowType.X11BypassWindowManagerHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
@@ -45,6 +46,25 @@ class TodoOverlay(QWidget):
         label_layout = QVBoxLayout(self.background_label)
         label_layout.setContentsMargins(20, 30, 20,30)
 
+        self.close_button = QPushButton("×", self.background_label)
+        self.close_button.setFixedSize(24, 24)
+        self.close_button.move(160, 5) 
+        
+        self.close_button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #2c2c2c;
+                font-size: 18px;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover {
+                color: #aa0000;
+            }
+        """)
+
+        self.close_button.clicked.connect(lambda: QApplication.instance().quit())
+
         self.text_editor = QTextEdit()
         self.text_editor.setFont(custom_font)
         self.text_editor.setText("")
@@ -62,9 +82,19 @@ class TodoOverlay(QWidget):
 
         self.data_received.connect(self.update_todos)
         
-        self.setGeometry(1340, 620, 190, 240)     # x, y, w, h
+        self.setGeometry(1340, 500, 190, 240)     # x, y, w, h
 
     def update_todos(self, todos):
         self.text_editor.setPlainText(todos)
         self.show()
         #self.display_timer.start(6000)
+
+    def load(self):
+        with open("save.txt", "r", encoding="utf-8") as f:
+            data = f.read()
+        self.text_editor.setPlainText(data)
+    
+    def save(self):
+        data = self.text_editor.toPlainText()
+        with open("save.txt", "w", encoding="utf-8") as f:
+            f.write(data)
