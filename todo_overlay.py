@@ -1,7 +1,11 @@
+import os
 from PyQt6.QtWidgets import QLabel, QWidget, QVBoxLayout, QTextEdit, QPushButton, QApplication
 from PyQt6.QtGui import QFont, QFontDatabase
 from PyQt6.QtGui import QFont
-from PyQt6.QtCore import Qt, QPoint
+from PyQt6.QtCore import Qt, QPoint, QTimer
+
+os.environ["QT_QUICK_BACKEND"] = "software"
+os.environ["QT_WIDGETS_RHI_BACKEND"] = "software"
 
 class TodoOverlay(QWidget):
 
@@ -23,12 +27,12 @@ class TodoOverlay(QWidget):
             Qt.WindowType.FramelessWindowHint | 
             Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.Tool |
-            Qt.WindowType.CustomizeWindowHint |
-            Qt.WindowType.X11BypassWindowManagerHint
+            Qt.WindowType.CustomizeWindowHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_AlwaysStackOnTop)
 
         self.setMouseTracking(True)
 
@@ -84,6 +88,17 @@ class TodoOverlay(QWidget):
         
         self.setGeometry(1340, 500, 190, 240)     # x, y, w, h
 
+        self.raise_timer = QTimer(self)
+        self.raise_timer.timeout.connect(self.stay_on_top)
+        self.raise_timer.start(1000) 
+
+        self.load()
+
+    def stay_on_top(self):
+
+        if not self._dragging and not self._resizing:
+            self.raise_()
+            self.update() 
 
     def load(self):
         with open("save.txt", "r", encoding="utf-8") as f:
