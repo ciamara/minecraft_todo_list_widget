@@ -12,9 +12,12 @@ class TodoOverlay(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.minimized = False
+        self.old_size = None
         self._dragging = False
         self._resizing = False
         self._drag_pos = QPoint()
+        self._start_pos = QPoint()
         self.resize_margin = 10
 
         font_path = "Minecraft.ttf"
@@ -40,6 +43,7 @@ class TodoOverlay(QWidget):
         main_layout.setContentsMargins(0, 0, 0, 0)
 
         self.background_label = QLabel("", self)
+        self.background_label.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         self.background_label.setStyleSheet("""
             QLabel {
                 border-image: url("book_page.png") 0 0 0 0 stretch stretch;
@@ -47,9 +51,10 @@ class TodoOverlay(QWidget):
             }
         """)
         
-        label_layout = QVBoxLayout(self.background_label)
-        label_layout.setContentsMargins(int(self.width()/25), int(self.width()/25), int(self.width()/25),int(self.width()/25))
+        self.label_layout = QVBoxLayout(self.background_label)
+        self.label_layout.setContentsMargins(int(self.width()/25), int(self.width()/25), int(self.width()/25),int(self.width()/25))
 
+        #close button
         self.close_button = QPushButton("×", self.background_label)
         self.close_button.setFixedSize(24, 24)
         self.close_button.move(150, 4) 
@@ -70,6 +75,27 @@ class TodoOverlay(QWidget):
 
         self.close_button.clicked.connect(lambda: QApplication.instance().quit())
 
+        #minimize button
+        self.minimize_button = QPushButton("-", self.background_label)
+        self.minimize_button.setFixedSize(24, 24)
+        self.minimize_button.move(40, 4) 
+        self.minimize_button.setContentsMargins(40, 0, 0, 0)
+        
+        self.minimize_button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #2c2c2c;
+                font-size: 18px;
+                font-weight: bold;
+                border: none;
+            }
+            QPushButton:hover {
+                color: #aa0000;
+            }
+        """)
+
+        self.minimize_button.clicked.connect(self.toggle_minimize)
+
         self.text_editor = QTextEdit()
         self.text_editor.setFont(custom_font)
         self.text_editor.setText("")
@@ -82,7 +108,7 @@ class TodoOverlay(QWidget):
             }
         """)
 
-        label_layout.addWidget(self.text_editor)
+        self.label_layout.addWidget(self.text_editor)
         main_layout.addWidget(self.background_label)
 
         
@@ -93,6 +119,49 @@ class TodoOverlay(QWidget):
         self.raise_timer.start(1000) 
 
         self.load()
+
+    def set_full_style(self):
+        self.background_label.setStyleSheet("""
+            QLabel {
+                border-image: url("book_page.png") 0 0 0 0 stretch stretch;
+                border-radius: 8px;
+            }
+        """)
+
+    def set_minimized_style(self):
+        self.background_label.setStyleSheet("""
+            QLabel {
+                border-image: url("booknquill.png") 0 0 0 0 stretch stretch;
+            }
+        """)
+
+    def toggle_minimize(self):
+        if not self.minimized:
+            self.old_size = self.geometry()
+            self.minimized = True
+            
+            self.text_editor.hide()
+            self.close_button.hide()
+            self.minimize_button.hide()
+
+            self.label_layout.setContentsMargins(0, 0, 0, 0)
+            
+            self.set_minimized_style()
+            self.setFixedSize(40, 40)
+        else:
+            self.minimized = False
+            
+            self.setMinimumSize(0, 0)
+            self.setMaximumSize(16777215, 16777215)
+
+            self.label_layout.setContentsMargins(25, 30, 25, 10)
+
+            self.resize(self.old_size.width(), self.old_size.height())
+            
+            self.text_editor.show()
+            self.close_button.show()
+            self.minimize_button.show()
+            self.set_full_style()
 
     def stay_on_top(self):
 
@@ -112,8 +181,10 @@ class TodoOverlay(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
+            self._start_pos = event.globalPosition().toPoint() 
             rect = self.rect()
-            if event.pos().x() > rect.width() - self.resize_margin and \
+            
+            if not self.minimized and event.pos().x() > rect.width() - self.resize_margin and \
                event.pos().y() > rect.height() - self.resize_margin:
                 self._resizing = True
             else:
@@ -140,12 +211,19 @@ class TodoOverlay(QWidget):
         event.accept()
 
     def mouseReleaseEvent(self, event):
+        end_pos = event.globalPosition().toPoint()
+        moved_distance = (end_pos - self._start_pos).manhattanLength()
+
+        if self.minimized and moved_distance < 3:
+            self.toggle_minimize()
+
         self._dragging = False
         self._resizing = False
         self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def resizeEvent(self, event):
         self.close_button.move(self.width() - 40, 5)
+        self.minimize_button.move(20, 4)
         self.text_editor.move(int(self.width()/10), int(self.height()/9))
 
         dynamic_size = max(8, int(self.width() / 15)) 
